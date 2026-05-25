@@ -40,7 +40,13 @@ npm install git+ssh://git@github.com/64pixeldreams/headsuppclientsdk.git#v0.1.0
 Local workspace install while developing:
 
 ```bash
-npm install ../headsupp/packages/headsupp-client
+npm install ../headsuppclientsdk
+```
+
+Zero-registry option:
+
+```text
+copy this repository's /src folder into the consuming project
 ```
 
 ## Environment

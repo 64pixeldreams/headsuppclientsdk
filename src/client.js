@@ -59,7 +59,9 @@ export function createHeadsUpClient({ baseUrl, apiKey, bootstrapToken, fetch: fe
     if (options.bootstrapToken || (!bearer && bootstrapToken)) {
       headers['X-HeadsUp-Bootstrap-Token'] = options.bootstrapToken || bootstrapToken;
     }
-    return assertSuccess(await postJson('/api/function', { action, payload }, headers));
+    const envelope = await postJson('/api/function', { action, payload }, headers);
+    if (envelope == null) return undefined;
+    return assertSuccess(envelope);
   }
 
   async function sendRawPayload({ connectorKey, connectorSecret, payload, timestamp = new Date().toISOString() }) {
