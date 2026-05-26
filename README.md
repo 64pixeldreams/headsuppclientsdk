@@ -2,7 +2,7 @@
 
 Private Node and Cloudflare Workers client for the Heads Up API.
 
-For API onboarding, start with [docs/quickstart.md](docs/quickstart.md), then use [docs/reference.md](docs/reference.md) for all props and [docs/use-cases.md](docs/use-cases.md) for scenario guidance.
+For API onboarding, start with [docs/quickstart.md](docs/quickstart.md), then use [docs/reference.md](docs/reference.md) for all props and [docs/use-cases.md](docs/use-cases.md) for scenario guidance. The `docs/` folder is included in this repository and in the published package.
 
 This package is proprietary software owned by 64 Pixel Holdings LLC and operated by Inc64 LLC.
 
