@@ -2,7 +2,7 @@
 
 Private Node and Cloudflare Workers client for the Heads Up API.
 
-For API onboarding, start with [quickstart.md](../../docs/api/quickstart.md) in the main repo, then use [reference.md](../../docs/api/reference.md) for all props and [use-cases.md](../../docs/api/use-cases.md) for scenario guidance.
+For API onboarding, start with [docs/quickstart.md](docs/quickstart.md), then use [docs/reference.md](docs/reference.md) for all props and [docs/use-cases.md](docs/use-cases.md) for scenario guidance.
 
 This package is proprietary software owned by 64 Pixel Holdings LLC and operated by Inc64 LLC.
 
@@ -13,12 +13,38 @@ POST /api/function              control-plane actions
 POST /v1/events/{connectorKey}  HMAC-signed event ingest
 ```
 
+## API Docs Map
+
+Use these docs beside the SDK examples:
+
+```text
+Quickstart and full setup       docs/quickstart.md
+All action props and responses  docs/reference.md
+Channels and signals            docs/reference.md + main API admin docs
+Subscribers                     docs/reference.md + main API subscriber docs
+Watch types and bucket config   docs/watch-types.md
+Aggregate forwarding            docs/aggregate-forwarding.md
+Scenario guidance               docs/use-cases.md
+Webhook receiver behavior       docs/webhook-receivers.md
+OpenAPI endpoint surface        docs/openapi.yaml
+```
+
+Canonical app/API docs live in the main API repo: <https://github.com/64pixeldreams/headsuppapp/tree/main/docs/api>.
+
+Most-used canonical guides:
+
+- Channels, signals, and admin actions: <https://github.com/64pixeldreams/headsuppapp/blob/main/docs/api/admin.md>
+- Connectors and event ingest: <https://github.com/64pixeldreams/headsuppapp/blob/main/docs/api/connectors-and-ingest.md>
+- Subscribers and delivery retry: <https://github.com/64pixeldreams/headsuppapp/blob/main/docs/api/subscribers.md>
+- Email subscribers: <https://github.com/64pixeldreams/headsuppapp/blob/main/docs/api/email-subscribers.md>
+- Aggregate forwarding: <https://github.com/64pixeldreams/headsuppapp/blob/main/docs/api/aggregate-forwarding.md>
+
 ## Install
 
 Recommended production install from GitHub Packages:
 
 ```bash
-npm install @64pixeldreams/headsupp-client@0.1.0
+npm install @64pixeldreams/headsupp-client@0.1.1
 ```
 
 For GitHub Packages, add this to the consuming project's `.npmrc`:
@@ -34,7 +60,7 @@ Local developers need a GitHub token with `read:packages`. CI should use a packa
 Tag-pinned Git fallback:
 
 ```bash
-npm install git+ssh://git@github.com/64pixeldreams/headsuppclientsdk.git#v0.1.0
+npm install git+ssh://git@github.com/64pixeldreams/headsuppclientsdk.git#v0.1.1
 ```
 
 Local workspace install while developing:
@@ -272,7 +298,7 @@ await headsup.createWatch({
 });
 ```
 
-See [watch-types.md](../../docs/api/watch-types.md) in the main repo for all supported watch types.
+See [docs/watch-types.md](docs/watch-types.md) for all supported watch types and [docs/aggregate-forwarding.md](docs/aggregate-forwarding.md) for supported bucket sizes, aggregate values, callback payloads, signing headers, and retry behavior.
 
 ## Send Events
 
