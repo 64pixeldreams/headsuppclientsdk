@@ -89,6 +89,37 @@ test('supports getChannel and updateChannel wrappers', async () => {
   });
 });
 
+test('disableSubscriber and deleteSubscriber unwrap subscriber resources', async () => {
+  const responses = [
+    functionEnvelope('subscriber', { subscriber_id: 'sub_1', enabled: 0 }),
+    functionEnvelope('subscriber', { subscriber_id: 'sub_1' }),
+  ];
+  const { client, calls } = createFunctionClient((_url, _init, idx) => responses[idx]);
+
+  const disabled = await client.disableSubscriber({
+    workspace_id: 'ws_demo',
+    channel_id: 'ch_demo',
+    subscriber_id: 'sub_1',
+  });
+  const deleted = await client.deleteSubscriber({
+    workspace_id: 'ws_demo',
+    channel_id: 'ch_demo',
+    email: 'martin@example.com',
+    mode: 'alert',
+  });
+
+  assert.equal(disabled.subscriber_id, 'sub_1');
+  assert.equal(deleted.subscriber_id, 'sub_1');
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    action: 'admin.disableSubscriber',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', subscriber_id: 'sub_1' },
+  });
+  assert.deepEqual(JSON.parse(calls[1].init.body), {
+    action: 'admin.deleteSubscriber',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', email: 'martin@example.com', mode: 'alert' },
+  });
+});
+
 test('maps wrapper methods to expected action names and unwraps resources', async () => {
   const responses = [
     functionEnvelope('channel_contract', { channel_contract_id: 'cc_1' }),

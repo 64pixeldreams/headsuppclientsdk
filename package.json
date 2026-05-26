@@ -14,7 +14,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test \"test/**/*.test.js\" && node scripts/verify-docs.mjs",
+    "verify:docs": "node scripts/verify-docs.mjs"
   },
   "repository": {
     "type": "git",
