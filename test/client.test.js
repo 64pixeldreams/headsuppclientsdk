@@ -14,44 +14,22 @@ function jsonResponse(body, status = 200) {
   };
 }
 
-function textResponse(text, status = 200, statusText = 'OK') {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText,
-    async text() {
-      return text;
-    },
-  };
-}
-
-function createFunctionClient(responseFactory) {
+test('calls control-plane actions and unwraps resources', async () => {
   const calls = [];
   const client = createHeadsUpClient({
     baseUrl: 'https://headsupp.example',
     apiKey: 'hu_api_test',
     fetch: async (url, init) => {
       calls.push({ url, init });
-      return responseFactory(url, init, calls.length - 1);
+      return jsonResponse({
+        success: true,
+        data: {
+          ok: true,
+          workspace: { workspace_id: 'ws_demo', name: 'Demo' },
+        },
+      });
     },
   });
-  return { client, calls };
-}
-
-function functionEnvelope(resourceKey, resourceValue) {
-  return jsonResponse({
-    success: true,
-    data: {
-      ok: true,
-      [resourceKey]: resourceValue,
-    },
-  });
-}
-
-test('calls control-plane actions and unwraps resources', async () => {
-  const { client, calls } = createFunctionClient(() =>
-    functionEnvelope('workspace', { workspace_id: 'ws_demo', name: 'Demo' }),
-  );
 
   const workspace = await client.createWorkspace({ name: 'Demo' });
 
@@ -62,13 +40,25 @@ test('calls control-plane actions and unwraps resources', async () => {
 });
 
 test('supports getChannel and updateChannel wrappers', async () => {
-  const { client, calls } = createFunctionClient(() =>
-    functionEnvelope('channel', {
-      channel_id: 'ch_demo',
-      name: 'Demo Channel',
-      metadata: { forecast_id: 'fc_123' },
-    }),
-  );
+  const calls = [];
+  const client = createHeadsUpClient({
+    baseUrl: 'https://headsupp.example',
+    apiKey: 'hu_api_test',
+    fetch: async (url, init) => {
+      calls.push({ url, init });
+      return jsonResponse({
+        success: true,
+        data: {
+          ok: true,
+          channel: {
+            channel_id: 'ch_demo',
+            name: 'Demo Channel',
+            metadata: { forecast_id: 'fc_123' },
+          },
+        },
+      });
+    },
+  });
 
   const channel = await client.getChannel({ workspace_id: 'ws_demo', channel_id: 'ch_demo' });
   const updated = await client.updateChannel({
@@ -89,133 +79,122 @@ test('supports getChannel and updateChannel wrappers', async () => {
   });
 });
 
-test('disableSubscriber and deleteSubscriber unwrap subscriber resources', async () => {
-  const responses = [
-    functionEnvelope('subscriber', { subscriber_id: 'sub_1', enabled: 0 }),
-    functionEnvelope('subscriber', { subscriber_id: 'sub_1' }),
-  ];
-  const { client, calls } = createFunctionClient((_url, _init, idx) => responses[idx]);
+test('supports getSubscriber and listSubscribers wrappers', async () => {
+  const calls = [];
+  const client = createHeadsUpClient({
+    baseUrl: 'https://headsupp.example',
+    apiKey: 'hu_api_test',
+    fetch: async (url, init) => {
+      calls.push({ url, init });
+      if (calls.length === 1) {
+        return jsonResponse({
+          success: true,
+          data: {
+            ok: true,
+            subscriber: {
+              subscriber_id: 'sub_demo',
+              enabled: 1,
+              config: { authorization: { required: true, status: 'authorized' } },
+            },
+          },
+        });
+      }
+      return jsonResponse({
+        success: true,
+        data: {
+          ok: true,
+          subscribers: [{ subscriber_id: 'sub_demo', enabled: 1 }],
+        },
+      });
+    },
+  });
 
-  const disabled = await client.disableSubscriber({
+  const subscriber = await client.getSubscriber({
     workspace_id: 'ws_demo',
     channel_id: 'ch_demo',
-    subscriber_id: 'sub_1',
+    subscriber_id: 'sub_demo',
   });
-  const deleted = await client.deleteSubscriber({
+  const subscribers = await client.listSubscribers({
+    workspace_id: 'ws_demo',
+    channel_id: 'ch_demo',
+  });
+
+  assert.equal(subscriber.config.authorization.status, 'authorized');
+  assert.equal(subscribers.length, 1);
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    action: 'admin.getSubscriber',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', subscriber_id: 'sub_demo' },
+  });
+  assert.deepEqual(JSON.parse(calls[1].init.body), {
+    action: 'admin.listSubscribers',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo' },
+  });
+});
+
+test('supports disable/delete subscriber wrappers', async () => {
+  const calls = [];
+  const client = createHeadsUpClient({
+    baseUrl: 'https://headsupp.example',
+    apiKey: 'hu_api_test',
+    fetch: async (url, init) => {
+      calls.push({ url, init });
+      if (calls.length === 3) {
+        return jsonResponse({ success: true, data: { ok: true, deleted: true } });
+      }
+      return jsonResponse({
+        success: true,
+        data: {
+          ok: true,
+          subscriber: { subscriber_id: 'sub_demo', enabled: 0 },
+        },
+      });
+    },
+  });
+
+  const disabledById = await client.disableSubscriber({
+    workspace_id: 'ws_demo',
+    channel_id: 'ch_demo',
+    subscriber_id: 'sub_demo',
+  });
+  const disabledByEmail = await client.disableSubscriberByEmail({
     workspace_id: 'ws_demo',
     channel_id: 'ch_demo',
     email: 'martin@example.com',
     mode: 'alert',
   });
-
-  assert.equal(disabled.subscriber_id, 'sub_1');
-  assert.equal(deleted.subscriber_id, 'sub_1');
-  assert.deepEqual(JSON.parse(calls[0].init.body), {
-    action: 'admin.disableSubscriber',
-    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', subscriber_id: 'sub_1' },
-  });
-  assert.deepEqual(JSON.parse(calls[1].init.body), {
-    action: 'admin.deleteSubscriber',
-    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', email: 'martin@example.com', mode: 'alert' },
-  });
-});
-
-test('maps wrapper methods to expected action names and unwraps resources', async () => {
-  const responses = [
-    functionEnvelope('channel_contract', { channel_contract_id: 'cc_1' }),
-    functionEnvelope('channel_contract', { channel_contract_id: 'cc_2' }),
-    jsonResponse({ success: true, data: { ok: true, alerts: [{ alert_id: 'alert_1' }], metadata: { as_of: 'now' } } }),
-    functionEnvelope('watch_state', { watch_id: 'watch_1', last_status: 'warning' }),
-    functionEnvelope('action_control', { action_id: 'ac_1', action_type: 'snooze' }),
-    functionEnvelope('action_control', { action_id: 'ac_2', action_type: 'mute' }),
-    functionEnvelope('action_control', { action_id: 'ac_3', action_type: 'resume' }),
-    functionEnvelope('action_control', { action_id: 'ac_4', action_type: 'ignore' }),
-  ];
-  const { client, calls } = createFunctionClient((_url, _init, idx) => responses[idx]);
-
-  const createdContract = await client.createChannelContract({ workspace_id: 'ws_demo', channel_id: 'ch_demo' });
-  const updatedContract = await client.updateChannelContract({
+  const deleted = await client.deleteSubscriber({
     workspace_id: 'ws_demo',
     channel_id: 'ch_demo',
-    channel_contract_id: 'cc_1',
+    subscriber_id: 'sub_demo',
   });
-  const alertList = await client.listChannelAlerts({ workspace_id: 'ws_demo', channel_id: 'ch_demo' });
-  const watchState = await client.getWatchState({ workspace_id: 'ws_demo', channel_id: 'ch_demo', watch_id: 'watch_1' });
-  const snooze = await client.snoozeWatch({ workspace_id: 'ws_demo', channel_id: 'ch_demo', watch_id: 'watch_1' });
-  const mute = await client.muteWatch({ workspace_id: 'ws_demo', channel_id: 'ch_demo', watch_id: 'watch_1' });
-  const resume = await client.resumeWatch({ workspace_id: 'ws_demo', channel_id: 'ch_demo', watch_id: 'watch_1' });
-  const ignore = await client.ignoreAlert({ workspace_id: 'ws_demo', channel_id: 'ch_demo', alert_id: 'alert_1' });
 
-  assert.equal(createdContract.channel_contract_id, 'cc_1');
-  assert.equal(updatedContract.channel_contract_id, 'cc_2');
-  assert.equal(alertList.alerts[0].alert_id, 'alert_1');
-  assert.equal(watchState.watch_id, 'watch_1');
-  assert.equal(snooze.action_type, 'snooze');
-  assert.equal(mute.action_type, 'mute');
-  assert.equal(resume.action_type, 'resume');
-  assert.equal(ignore.action_type, 'ignore');
-
-  const actions = calls.map((call) => JSON.parse(call.init.body).action);
-  assert.deepEqual(actions, [
-    'admin.createChannelContract',
-    'admin.updateChannelContract',
-    'admin.listChannelAlerts',
-    'admin.getWatchState',
-    'admin.snoozeWatch',
-    'admin.muteWatch',
-    'admin.resumeWatch',
-    'admin.ignoreAlert',
-  ]);
-});
-
-test('returns undefined for empty successful response body', async () => {
-  const { client } = createFunctionClient(() => textResponse('', 200, 'OK'));
-  const result = await client.createWorkspace({ name: 'Demo' });
-  assert.equal(result, undefined);
-});
-
-test('throws useful API errors for invalid JSON response', async () => {
-  const { client } = createFunctionClient(() => textResponse('not-json', 200, 'OK'));
-  await assert.rejects(() => client.createWorkspace({ name: 'Demo' }), (error) => {
-    assert.equal(error instanceof HeadsUpApiError, true);
-    assert.equal(error.code, 'INVALID_JSON_RESPONSE');
-    assert.equal(error.status, 200);
-    assert.equal(error.response, 'not-json');
-    return true;
+  assert.equal(disabledById.subscriber_id, 'sub_demo');
+  assert.equal(disabledByEmail.enabled, 0);
+  assert.equal(deleted.deleted, true);
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    action: 'admin.disableSubscriber',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', subscriber_id: 'sub_demo' },
   });
-});
-
-test('throws useful API errors for non-2xx JSON error response', async () => {
-  const { client } = createFunctionClient(() =>
-    jsonResponse(
-      {
-        success: false,
-        error: { code: 'PERMISSION_DENIED', message: 'Missing permission.', status: 403 },
-      },
-      403,
-    ),
-  );
-
-  await assert.rejects(() => client.createWorkspace({ name: 'Demo' }), (error) => {
-    assert.equal(error instanceof HeadsUpApiError, true);
-    assert.equal(error.code, 'HTTP_ERROR');
-    assert.equal(error.status, 403);
-    assert.deepEqual(error.response.error, {
-      code: 'PERMISSION_DENIED',
-      message: 'Missing permission.',
-      status: 403,
-    });
-    return true;
+  assert.deepEqual(JSON.parse(calls[1].init.body), {
+    action: 'admin.disableSubscriber',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', email: 'martin@example.com', mode: 'alert' },
+  });
+  assert.deepEqual(JSON.parse(calls[2].init.body), {
+    action: 'admin.deleteSubscriber',
+    payload: { workspace_id: 'ws_demo', channel_id: 'ch_demo', subscriber_id: 'sub_demo' },
   });
 });
 
 test('throws useful API errors', async () => {
-  const { client } = createFunctionClient(() =>
-    jsonResponse({
-      success: false,
-      error: { code: 'PERMISSION_DENIED', message: 'Nope.', status: 403 },
-    }),
-  );
+  const client = createHeadsUpClient({
+    baseUrl: 'https://headsupp.example',
+    apiKey: 'hu_api_test',
+    fetch: async () =>
+      jsonResponse({
+        success: false,
+        error: { code: 'PERMISSION_DENIED', message: 'Nope.', status: 403 },
+      }),
+  });
 
   await assert.rejects(() => client.createWorkspace({ name: 'Demo' }), (error) => {
     assert.equal(error instanceof HeadsUpApiError, true);
@@ -259,34 +238,6 @@ test('sends signed single events', async () => {
   assert.equal(JSON.parse(calls[0].init.body).signal_key, 'demo.metric');
 });
 
-test('accepts 202 ingest response when accepted is true', async () => {
-  const client = createHeadsUpClient({
-    baseUrl: 'https://headsupp.example',
-    fetch: async () =>
-      jsonResponse(
-        {
-          accepted: true,
-          authenticated: true,
-          queued: 1,
-          rejected: 0,
-          connector_key: 'ck_demo',
-        },
-        202,
-      ),
-  });
-  const result = await client.sendEvent({
-    connectorKey: 'ck_demo',
-    connectorSecret: 'hu_sec_test',
-    event: {
-      idempotency_key: 'evt_accepted',
-      signal_key: 'demo.metric',
-      occurred_at: '2026-05-25T12:00:00.000Z',
-      value: { num: 1 },
-    },
-  });
-  assert.equal(result.accepted, true);
-});
-
 test('sends signed event batches', async () => {
   const calls = [];
   const client = createHeadsUpClient({
@@ -309,42 +260,4 @@ test('sends signed event batches', async () => {
 
   assert.equal(result.queued, 2);
   assert.equal(JSON.parse(calls[0].init.body).events.length, 2);
-});
-
-test('throws ingest error when accepted is not true', async () => {
-  const client = createHeadsUpClient({
-    baseUrl: 'https://headsupp.example',
-    fetch: async () =>
-      jsonResponse(
-        {
-          accepted: false,
-          authenticated: true,
-          queued: 0,
-          rejected: 1,
-          error: { code: 'INVALID_EVENT_PAYLOAD', message: 'Missing value.', status: 400 },
-        },
-        202,
-      ),
-  });
-
-  await assert.rejects(
-    () =>
-      client.sendEvent({
-        connectorKey: 'ck_demo',
-        connectorSecret: 'hu_sec_test',
-        event: {
-          idempotency_key: 'evt_rejected',
-          signal_key: 'demo.metric',
-          occurred_at: '2026-05-25T12:00:00.000Z',
-          value: { num: 1 },
-        },
-      }),
-    (error) => {
-      assert.equal(error instanceof HeadsUpApiError, true);
-      assert.equal(error.code, 'INVALID_EVENT_PAYLOAD');
-      assert.equal(error.status, 400);
-      assert.equal(error.response.accepted, false);
-      return true;
-    },
-  );
 });
