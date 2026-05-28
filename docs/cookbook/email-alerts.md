@@ -48,6 +48,8 @@ config: {
 
 When `authorization.required` is true, the subscriber starts disabled until the recipient confirms via the emailed link (`GET /v1/subscribers/confirm?token=...` on the API host).
 
+**Batch subscribe:** consent is per subscriber row, not per email globally. To subscribe a user to many alerts with **one** opt-in email, use one channel + one email subscriber + `config.filters`, not one email subscriber per channel. See [email-subscribers.md](../../api/email-subscribers.md#batch-subscribe-and-one-opt-in-email) (API repo) or provision with `admin.provisionChannel` and a stable `subscriber_key`.
+
 ## Watch and send (same as webhook path)
 
 ```js
@@ -84,5 +86,5 @@ await headsup.sendEvent({
 - Optional action buttons when `config.actions` is set
 - CTA buttons use `cta.variant` or `cta.color_class` (`primary`, `success`, `warning`, `danger`, `info`, `dark`, `light`)
 - Footer brand links use `branding.footer_brand_name`/`footer_brand_url`, falling back to `brand_name`/`brand_url`
-- Partial integrator branding does not inherit Heads Up legal/footer text inside the card; `Powered by headsupp.io` and the platform address render below the card
+- Partial integrator branding does not inherit Heads Up legal/footer text; `Powered by headsupp.io` is controlled by Heads Up
 - Confirmation email first when authorization is required
